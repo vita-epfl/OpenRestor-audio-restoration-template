@@ -1,6 +1,6 @@
 # OpenRestor audio restoration template
 
-This starter project implements the planned OpenRestor container interface. The included model is an **identity baseline**: it copies each degraded input to the output and does not restore audio. Replace `model.restore` and bundle your weights before submitting a trained model.
+This starter project implements the planned OpenRestor container interface. The included model is an **identity baseline**: it copies each degraded input to the output and does not restore audio. Replace `model.restore`, install your model dependencies, and make your trained weights available to the container before submitting a model.
 
 ## Input and output contract
 
@@ -32,10 +32,17 @@ openrestor-score validate-restored \
 
 ```bash
 docker build -t openrestor-template:local .
+mkdir -p outputs
 docker run --rm --network none \
   -v /path/to/degraded:/input/degraded:ro \
   -v "$PWD/outputs:/output" \
   openrestor-template:local
 ```
 
-For the future official track, submit an immutable image digest, build recipe, model weights, and an inference command. The OpenRestor release and submission terms are still being finalized. See the project [guide](https://github.com/vita-epfl/OpenRestor/blob/main/docs/openrestor_guide.md) for the current contract.
+## Connecting a trained model
+
+`model.restore(audio, sample_rate, metadata)` receives one degraded stereo waveform at a time and must return a finite `float32` array with the same shape. `run_inference.py` handles manifest IDs, output WAVs, timing, and the output manifest. Your model implementation may load weights baked into the image or from a read-only mounted directory such as `/weights`; declare any additional environment variables in your own project. If your model requires a GPU, build its CUDA runtime into your image and request GPU access when running it.
+
+The ARIEL SA3 pilot exercised this contract with a trained LoRA inside its own GPU Docker image. It produced eight outputs accepted and scored by OpenRestor on a **private validation set**. That test used mounted SA3, SAME-L, and LoRA weights. This starter image still contains only the identity baseline; the pilot weights and audio are not distributed here.
+
+Before sharing a trained container, run it on an allowed validation package and pass the `validate-restored` command above. Pin the image by digest, record the inference command and model asset versions, and keep test-only data out of training. The public dataset release and official submission terms are still being finalized. See the project [guide](https://github.com/vita-epfl/OpenRestor/blob/main/docs/openrestor_guide.md) for the current contract.
